@@ -1,0 +1,18 @@
+<svg width="400" height="120" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Logo Icon (Open Book with Flowing Pages & Motion Effect) -->
+    <g transform="translate(10,30)">
+        <path d="M10 20 Q30 -5, 50 20 T90 20" stroke="#4A90E2" stroke-width="4" fill="none"/>
+        <path d="M10 30 Q30 5, 50 30 T90 30" stroke="#4A90E2" stroke-width="4" fill="none"/>
+        <path d="M10 40 Q30 15, 50 40 T90 40" stroke="#4A90E2" stroke-width="4" fill="none"/>
+        <circle cx="95" cy="30" r="5" fill="#4A90E2"/>
+    </g>
+
+    <!-- Swirling Flow Effect -->
+    <path d="M100 35 C130 5, 180 5, 210 35" stroke="#4A90E2" stroke-width="4" fill="none"/>
+    <path d="M100 45 C140 15, 190 15, 230 45" stroke="#4A90E2" stroke-width="4" fill="none"/>
+    
+    <!-- Text beside Logo -->
+    <text x="130" y="65" font-family="Poppins, sans-serif" font-size="38" font-weight="bold" fill="#333">
+        Edu<tspan fill="#4A90E2">Flow</tspan>
+    </text>
+</svg>

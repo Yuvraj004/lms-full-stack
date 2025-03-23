@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="flex flex-col md:items-start items-center w-full">
           <img src={assets.logo_dark} alt="logo" />
           <p className="mt-6 text-center md:text-left text-sm text-white/80">
-            Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text.
+          EduFlow is a cutting-edge EdTech platform designed to revolutionize learning through interactive and personalized education.
           </p>
         </div>
 
@@ -36,7 +36,7 @@ const Footer = () => {
 
       </div>
       <p className="py-4 text-center text-xs md:text-sm text-white/60">
-        Copyright 2025 © TeamMate. All Right Reserved.
+        Copyright 2025 © EduFlow. All Right Reserved.
       </p>
     </footer>
   );

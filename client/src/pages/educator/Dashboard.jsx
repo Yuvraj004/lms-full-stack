@@ -93,7 +93,7 @@ const Dashboard = () => {
             <img src={assets.patients_icon} alt="patients_icon" />
             <div>
               <p className='text-2xl font-medium text-gray-600'>{dashboardData.enrolledStudentsData.length}</p>
-              <p className='text-base text-gray-500'>Total Enrolments</p>
+              <p className='text-base text-gray-500'>Total Enrollments</p>
             </div>
           </div>
           <div className='flex items-center gap-3 shadow-card border border-blue-500 p-4 w-56 rounded-md'>

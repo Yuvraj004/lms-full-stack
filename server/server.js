@@ -1,6 +1,6 @@
 import express from 'express'
 import cors from 'cors'
-import 'dotenv/config'
+import dotenv from 'dotenv';
 import connectDB from './configs/mongodb.js'
 import connectCloudinary from './configs/cloudinary.js'
 import userRouter from './routes/userRoutes.js'
@@ -8,6 +8,8 @@ import { clerkMiddleware } from '@clerk/express'
 import { clerkWebhooks, stripeWebhooks } from './controllers/webhooks.js'
 import educatorRouter from './routes/educatorRoutes.js'
 import courseRouter from './routes/courseRoute.js'
+import aiRouter from './routes/aiRoutes.js'
+dotenv.config({ path: './.env' });
 
 // Initialize Express
 const app = express()
@@ -22,7 +24,8 @@ app.use(clerkMiddleware())
 
 // Routes
 app.get('/', (req, res) => res.send("API Working"))
-app.post('/clerk', express.json() , clerkWebhooks)
+app.use('/api/ai',aiRouter)
+app.post('/clerk', express.json(), clerkWebhooks)
 app.post('/stripe', express.raw({ type: 'application/json' }), stripeWebhooks)
 app.use('/api/educator', express.json(), educatorRouter)
 app.use('/api/course', express.json(), courseRouter)

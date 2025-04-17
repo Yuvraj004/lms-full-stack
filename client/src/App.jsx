@@ -15,6 +15,7 @@ import { ToastContainer } from 'react-toastify'
 import Player from './pages/student/Player'
 import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
+import TranscriptionApp from './pages/ai/test';
 
 const App = () => {
 
@@ -39,6 +40,7 @@ const App = () => {
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
         </Route>
+        <Route path='transcriptor' element={<TranscriptionApp/>} />
       </Routes>
     </div>
   )

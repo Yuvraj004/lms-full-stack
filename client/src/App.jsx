@@ -6,6 +6,7 @@ import CourseDetails from './pages/student/CourseDetails'
 import CoursesList from './pages/student/CoursesList'
 import Dashboard from './pages/educator/Dashboard'
 import AddCourse from './pages/educator/AddCourse'
+import EditCourse from './pages/educator/EditCourse'
 import MyCourses from './pages/educator/MyCourses'
 import StudentsEnrolled from './pages/educator/StudentsEnrolled'
 import Educator from './pages/educator/Educator'
@@ -37,6 +38,7 @@ const App = () => {
         <Route path='/educator' element={<Educator />}>
           <Route path='/educator' element={<Dashboard />} />
           <Route path='add-course' element={<AddCourse />} />
+          <Route path='edit-course/:courseId' element={<EditCourse />}/>
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
         </Route>

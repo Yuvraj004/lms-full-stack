@@ -61,6 +61,70 @@ export const addCourse = async (req, res) => {
     }
 }
 
+//Edit Course
+export const editCourse = async (req, res) => {
+    const { courseId } = req.params;
+    const { updateData } = req.body; // JSON string
+    const videoFiles = req.files; // multiple files (videos)
+    const parsedUpdateData = JSON.parse(updateData); // parse body
+
+    try {
+        console.log("course id received",courseId)
+        const course = await Course.findById(courseId);
+        if (!course) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Optional course-level updates
+        const {
+            courseTitle,
+            courseDescription,
+            coursePrice,
+            discount,
+            isPublished,
+            newChapters = [],
+            newLectures = [] // format: [{ chapterId, lectureId, otherLectureData }]
+        } = parsedUpdateData;
+
+        if (courseTitle) course.courseTitle = courseTitle;
+        if (courseDescription) course.courseDescription = courseDescription;
+        if (typeof coursePrice === 'number') course.coursePrice = coursePrice;
+        if (typeof discount === 'number') course.discount = discount;
+        if (typeof isPublished === 'boolean') course.isPublished = isPublished;
+
+        // Append new chapters
+        if (newChapters.length > 0) {
+            course.courseContent.push(...newChapters);
+        }
+
+        // Upload each lecture video and add it to the corresponding chapter
+        for (let i = 0; i < newLectures.length; i++) {
+            const { chapterId, ...lectureData } = newLectures[i];
+            const correspondingFile = videoFiles[i];
+
+            if (!correspondingFile) continue;
+
+            const uploadedVideo = await cloudinary.uploader.upload(correspondingFile.path, {
+                resource_type: 'video'
+            });
+
+            lectureData.lectureUrl = uploadedVideo.secure_url;
+
+            // Add lecture to the correct chapter
+            const chapter = course.courseContent.find(c => c.chapterId === chapterId);
+            if (chapter) {
+                chapter.chapterContent.push(lectureData);
+            }
+        }
+
+        await course.save();
+        res.json({ success: true, message: 'Course updated successfully', course });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // Get Educator Courses
 export const getEducatorCourses = async (req, res) => {
     try {

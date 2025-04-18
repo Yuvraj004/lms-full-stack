@@ -17,6 +17,7 @@ import Player from './pages/student/Player'
 import MyEnrollments from './pages/student/MyEnrollments'
 import Loading from './components/student/Loading'
 import TranscriptionApp from './pages/ai/test';
+import CourseDetailPage from './pages/educator/CourseDetailPage'
 
 const App = () => {
 
@@ -38,7 +39,8 @@ const App = () => {
         <Route path='/educator' element={<Educator />}>
           <Route path='/educator' element={<Dashboard />} />
           <Route path='add-course' element={<AddCourse />} />
-          <Route path='edit-course/:courseId' element={<EditCourse />}/>
+          <Route path='edit-course/:courseId' element={<EditCourse />} />
+          <Route path='courseDetails/:courseId' element={<CourseDetailPage/>}/>
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
         </Route>

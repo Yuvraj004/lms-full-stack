@@ -66,7 +66,7 @@ export const clerkWebhooks = async (req, res) => {
 
 
 // Stripe Gateway Initialize
-const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY)
+// const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY)
 
 
 // Stripe Webhooks to Manage Payments Action

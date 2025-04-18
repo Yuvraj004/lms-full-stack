@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -54,7 +54,7 @@ const MyCourses = () => {
                 <tr key={course._id} className="border-b border-gray-500/20">
                   <td className="md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3 truncate">
                     <img src={course.courseThumbnail} alt="Course Image" className="w-16" />
-                    <span className="truncate hidden md:block">{course.courseTitle}</span>
+                    <Link to={`/educator/courseDetails/${course._id}`}><span className="truncate hidden md:block">{course.courseTitle}</span></Link>
                   </td>
                   <td className="px-4 py-3">{currency} {Math.floor(course.enrolledStudents.length * (course.coursePrice - course.discount * course.coursePrice / 100))}</td>
                   <td className="px-4 py-3">{course.enrolledStudents.length}</td>

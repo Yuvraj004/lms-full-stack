@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useCallback } from "react";
+import React, { useContext, useEffect, useState, useCallback, useRef } from "react";
 import { AppContext } from '../../context/AppContext'; // Adjust path if needed
 import { useParams, useNavigate, Link } from "react-router-dom";
 import axios from "axios";
@@ -27,7 +27,7 @@ const formatDuration = (totalSeconds) => {
 // Helper function to calculate average rating (same as before)
 const calculateAverageRating = (ratings) => {
     // ... (keep existing calculateAverageRating function)
-     if (!ratings || ratings.length === 0) {
+    if (!ratings || ratings.length === 0) {
         return 0;
     }
     const total = ratings.reduce((sum, ratingObj) => sum + (ratingObj.rating || 0), 0);
@@ -40,10 +40,15 @@ const CourseDetailPage = () => {
     const navigate = useNavigate();
     const { backendUrl, getToken } = useContext(AppContext);
     const effectiveBackendUrl = backendUrl || "http://localhost:5000";
+    const videoRef = useRef(null);
 
     const [courseData, setCourseData] = useState(null);
+    const [lectureUrl, setLectureUrl] = useState("");
+    const [transcription, setTranscription] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [clicked, setClicked] = useState(false);
+    const [timeTranscription, setTimeTranscription] = useState('');
 
     // --- State for Video Player ---
     const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
@@ -54,7 +59,7 @@ const CourseDetailPage = () => {
     useEffect(() => {
         const fetchCourseData = async () => {
             // ... (keep existing fetchCourseData logic)
-             if (!courseId) {
+            if (!courseId) {
                 setError("No Course ID provided.");
                 setIsLoading(false);
                 return;
@@ -106,18 +111,76 @@ const CourseDetailPage = () => {
             setCurrentVideoUrl(lecture.lectureUrl);
             setCurrentVideoTitle(lecture.lectureTitle);
             setPlayingLectureId(lecture.lectureId); // Set the ID of the playing lecture
+            setLectureUrl(lecture.lectureUrl);
+            handleTranscriptCreation(lecture.lectureUrl);
         } else if (!lecture.lectureUrl) {
-             toast.info("Video for this lecture is not available yet.");
+            toast.info("Video for this lecture is not available yet.");
         } else {
             // If not a free preview and user isn't enrolled (assuming check needed)
-             toast.info("Enroll in the course to watch this lecture.");
-             // Optionally clear the player if a non-playable lecture is clicked
-             // setCurrentVideoUrl(null);
-             // setCurrentVideoTitle('');
-             // setPlayingLectureId(null);
+            toast.info("Enroll in the course to watch this lecture.");
+            // Optionally clear the player if a non-playable lecture is clicked
+            setCurrentVideoUrl(null);
+            setCurrentVideoTitle('');
+            setPlayingLectureId(null);
         }
     }, []); // No dependencies needed if access logic is self-contained or comes from props/context later
 
+
+    const handleTranscriptCreation = async (lectureUrl) => {
+        if (!lectureUrl) {
+            alert("Please select a video file first.");
+            return;
+        }
+        setClicked(true);
+        alert('generating Transcription');
+        try {
+            // Fetch the video file from Cloudinary URL
+            const response = await fetch(lectureUrl);
+            const blob = await response.blob();
+
+            // Create a File object (optional name and MIME type)
+            const file = new File([blob], "lecture.mp4", { type: blob.type });
+
+            // Prepare FormData
+            const formData = new FormData();
+            formData.append("file", file);
+            console.log("Sending file")
+
+            // Send to backend
+            const transcribeResponse = await fetch("http://localhost:5000/api/ai/transcribe", {
+                method: "POST",
+                body: formData,
+            });
+            console.log("receiving data")
+            const data = await transcribeResponse.json();
+
+            console.log(data.transcription.segments[0]);
+
+            setTranscription(data.transcription); // or data.segments if you want segments
+            setClicked(false);
+        } catch (error) {
+            console.error("Transcription Error:", error);
+            alert("Failed to transcribe the video file.");
+        }
+    };
+
+    const handleSliderChange = (e) => {
+        const timeperiod = (e.target.value / 100) * videoRef.current.getDuration();
+        const percentage = e.target.value / 100;
+        const newTime = videoRef.current.getDuration() * percentage;
+
+        if (videoRef.current) {
+            videoRef.current.seekTo(newTime, "seconds");
+        }
+        const foundSegment = transcription.segments.find((segment) => {
+            return timeperiod >= segment.start && timeperiod <= segment.end;
+        });
+
+        if (foundSegment) {
+            setTimeTranscription(foundSegment.text);
+            localStorage.setItem('Segment_Transcript', foundSegment.text);
+        }
+    };
 
     // --- Render Logic ---
 
@@ -126,7 +189,7 @@ const CourseDetailPage = () => {
     }
 
     if (error) {
-         return (
+        return (
             <div className="container mx-auto p-10 text-center text-red-600">
                 <p>Error loading course: {error}</p>
                 <Link to="/dashboard" className="text-indigo-600 hover:underline mt-4 inline-block">Go back to Dashboard</Link>
@@ -136,9 +199,9 @@ const CourseDetailPage = () => {
 
     if (!courseData) {
         return (
-             <div className="container mx-auto p-10 text-center text-gray-600">
+            <div className="container mx-auto p-10 text-center text-gray-600">
                 Course not found.
-                 <Link to="/dashboard" className="text-indigo-600 hover:underline mt-4 inline-block">Go back to Dashboard</Link>
+                <Link to="/dashboard" className="text-indigo-600 hover:underline mt-4 inline-block">Go back to Dashboard</Link>
             </div>
         );
     }
@@ -172,54 +235,78 @@ const CourseDetailPage = () => {
                         <h2 className="text-xl font-semibold text-white mb-3">{currentVideoTitle}</h2>
                         <div className='player-wrapper aspect-video'> {/* aspect-video for 16:9 ratio */}
                             <ReactPlayer
+                                ref={videoRef}
                                 className='react-player'
                                 url={currentVideoUrl}
                                 width='100%'
                                 height='100%'
-                                controls={true} // Show default player controls
-                                playing={true} // Optional: Auto-play when selected
+                                controls={true}
+                                playing={false} // Optional: Auto-play when selected
                                 onError={e => {
                                     console.error('Video Player Error:', e)
                                     toast.error('Could not load video.');
                                     setCurrentVideoUrl(null); // Clear on error
                                 }}
-                                // Add more config options as needed (e.g., light, pip, config prop)
                             />
+
+                            {/* --- Transcript Segments Slider --- */}
+                            {transcription?.segments?.length > 0 && (
+                                <div className="mt-6">
+                                    <h3 className="text-lg text-white font-semibold mb-4">Transcript Segments</h3>
+
+                                    {transcription && timeTranscription && (
+                                        <>
+                                            <div className="mb-6">
+                                                <p className="mt-2 text-white">{timeTranscription}</p>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        defaultValue="0"
+                                        className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                                        onChange={(e) => handleSliderChange(e)}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
                 <div className="p-6 md:p-8">
-                     {/* Course Title and Basic Info (same as before) */}
+                    {/* Course Title and Basic Info (same as before) */}
                     <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-3">{courseData.courseTitle}</h1>
                     <p className="text-gray-600 mb-5 text-lg">{courseData.courseDescription}</p>
 
-                     {/* Price and Discount (same as before) */}
-                     <div className="mb-6 flex items-baseline space-x-3">
-                         {/* ... price display ... */}
-                         <span className="text-3xl font-bold text-indigo-600">${discountedPrice}</span>
+                    {/* Price and Discount (same as before) */}
+                    <div className="mb-6 flex items-baseline space-x-3">
+                        {/* ... price display ... */}
+                        <span className="text-3xl font-bold text-indigo-600">${discountedPrice}</span>
                         {hasDiscount && (
                             <span className="text-xl text-gray-500 line-through">${courseData.coursePrice.toFixed(2)}</span>
                         )}
                         {hasDiscount && (
                             <span className="text-sm font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded">{courseData.discount}% off</span>
                         )}
-                     </div>
+                    </div>
 
-                     {/* Metadata (same as before, corrected educator display) */}
-                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 text-sm text-gray-700">
-                          {/* ... rating, students ... */}
-                          <div>
+                    {/* Metadata (same as before, corrected educator display) */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 text-sm text-gray-700">
+                        {/* ... rating, students ... */}
+                        <div>
                             <span className="font-semibold block">Rating:</span>
                             <span>{averageRating} / 5.0 ({courseData.courseRatings.length} ratings)</span>
-                         </div>
-                          <div>
+                        </div>
+                        <div>
                             <span className="font-semibold block">Students:</span>
                             <span>{courseData.enrolledStudents.length} enrolled</span>
-                         </div>
-                         <div>
+                        </div>
+                        <div>
                             <span className="font-semibold block">Educator:</span>
-                             <span>
+                            <span>
                                 {courseData.educator ?
                                     (typeof courseData.educator === 'object' ?
                                         (courseData.educator.name || courseData.educator._id || 'Unknown Educator')
@@ -229,17 +316,17 @@ const CourseDetailPage = () => {
                                 }
                             </span>
                         </div>
-                         <div>
+                        <div>
                             <span className="font-semibold block">Status:</span>
                             <span className={`font-medium ${courseData.isPublished ? 'text-green-600' : 'text-red-600'}`}>
                                 {courseData.isPublished ? 'Published' : 'Not Published'}
                             </span>
                         </div>
-                          <div>
+                        <div>
                             <span className="font-semibold block">Last Updated:</span>
                             <span>{new Date(courseData.updatedAt).toLocaleDateString()}</span>
-                         </div>
-                     </div>
+                        </div>
+                    </div>
 
                     {/* Course Content Section */}
                     <div className="mt-8 border-t pt-6">
@@ -267,13 +354,15 @@ const CourseDetailPage = () => {
                                                             <button
                                                                 onClick={() => handleLectureClick(lecture)}
                                                                 disabled={!lecture.lectureUrl} // Disable button if no URL
-                                                                className={`w-full flex justify-between items-center text-sm py-2 px-3 rounded transition-colors duration-150 ${
-                                                                    isPlaying ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-200' // Highlight if playing
-                                                                } ${!lecture.lectureUrl ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`} // Style disabled state
+                                                                className={`w-full flex justify-between items-center text-sm py-2 px-3 rounded transition-colors duration-150 ${isPlaying ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-200' // Highlight if playing
+                                                                    } ${!lecture.lectureUrl ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`} // Style disabled state
                                                             >
                                                                 <div className="flex items-center space-x-2 text-left">
                                                                     {/* Play Icon (conditional based on playing state or just static) */}
-                                                                    <svg className={`w-4 h-4 ${isPlaying ? 'text-indigo-600' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                                    <svg className={`w-4 h-4 ${isPlaying ? 'text-indigo-600' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                                    </svg>
                                                                     <span className="text-gray-800">{lecture.lectureTitle}</span>
                                                                     {lecture.isPreviewFree && (
                                                                         <span className="text-xs font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Preview</span>
@@ -283,9 +372,29 @@ const CourseDetailPage = () => {
                                                                     {formatDuration(lecture.lectureDuration)}
                                                                 </span>
                                                             </button>
+                                                            
+                                                            {/* {isPlayable && isPlaying && transcription &&
+                                                                <>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 my-16 gap-3 px-2 md:p-0">
+
+                                                                        {transcription.segments && transcription.segments.map((segment, index) => {
+                                                                            return (
+                                                                                <div key={index} id={segment.id} className="border border-gray-500/30 pb-6 overflow-hidden rounded-lg">
+                                                                                    <h3>
+                                                                                        <p>Start Time:{segment.start}</p>
+                                                                                        <p>End Time: {segment.end}</p>
+                                                                                    </h3>
+                                                                                    <p>Data: {segment.text}</p>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+
+                                                                    </div>
+                                                                </>
+                                                            } */}
                                                         </li>
                                                     );
-                                            })}
+                                                })}
                                             {chapter.chapterContent.length === 0 && (
                                                 <li className="text-sm text-gray-500 italic px-3 py-2">No lectures in this chapter yet.</li>
                                             )}

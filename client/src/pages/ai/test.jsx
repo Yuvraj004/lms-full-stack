@@ -26,6 +26,7 @@ const TranscriptionApp = () => {
             });
 
             const data = await response.json();
+            console.log(transcription)
             setTranscription(data.transcription);
         } catch (error) {
             console.error("Error:", error);

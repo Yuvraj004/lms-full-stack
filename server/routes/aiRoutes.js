@@ -21,9 +21,8 @@ const storage = multer.diskStorage({
 
     },
     filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const [name, format] = file.originalname.split('.');
-        cb(null, name + '-' + uniqueSuffix + '.' + format);
+        cb(null, name + '.' + format);
 
     }
 })
@@ -34,8 +33,9 @@ const upload = multer({ storage });
 
 //trancription of video
 aiRouter.post("/transcribe", upload.single("file"), async (req, res) => {
+    const filePath = req.file.path;
     try {
-        const filePath = req.file.path;
+        
 
         console.log(filePath);
 
@@ -90,7 +90,7 @@ aiRouter.post("/generate-summary", express.json(), async (req, res) => {
             res.json({success:false,notes:[]})
         }
 
-        res.json({ success: true, notes: response.data.notes });
+        res.json({ success: true, theories: response.data.theories });
     } catch (error) {
         console.error("Summarization error:", error);
         res.status(500).json({ error: "Summarization failed" });

@@ -1,9 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const TranscriptionApp = () => {
     const [file, setFile] = useState(null);
     const [transcription, setTranscription] = useState({});
     const [summaryNotes, setSummaryNotes] = useState([]);
+
+    useEffect(() => {
+        try {
+            const theoriesData = localStorage.getItem('Theories');
+            const parsedTheories = theoriesData ? JSON.parse(theoriesData) : [];
+            setSummaryNotes(Array.isArray(parsedTheories) ? parsedTheories : []);
+            console.log("In the use effect ", parsedTheories);
+        } catch (error) {
+            console.error("Error parsing theories:", error);
+            setSummaryNotes([]);
+        }
+    }, []);
 
 
     const handleFileChange = (event) => {
@@ -48,11 +60,17 @@ const TranscriptionApp = () => {
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({segments:dataToBeSend})
+                body: JSON.stringify({ segments: dataToBeSend })
             });
 
             const data = await response.json();
-            setSummaryNotes(data.notes);
+            if (data) {
+                localStorage.setItem('Theories', data.theories);
+            }
+
+            console.log(data.theories)
+
+            setSummaryNotes(data.theories);
         } catch (error) {
             console.error("Error generating summary:", error);
             alert("Failed to generate summary.");
@@ -70,22 +88,6 @@ const TranscriptionApp = () => {
             <h3>Transcription:</h3>
             {/* <p>{transcription.segments.length ?? "Upload an audio file to see transcription here."}</p> */}
             <p>{transcription.text ?? "No text provided"}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 my-16 gap-3 px-2 md:p-0">
-
-                {transcription.segments && transcription.segments.map((segment, index) => {
-                    return (
-
-                        <div key={index} id={segment.id} className="border border-gray-500/30 pb-6 overflow-hidden rounded-lg">
-                            <h3>
-                                <p>Start Time:{segment.start}</p>
-                                <p>End Time: {segment.end}</p>
-                            </h3>
-                            <p>Data: {segment.text}</p>
-
-                        </div>
-                    )
-                })}
-            </div>
 
             <button onClick={handleGenerateSummary} style={{ margin: "10px", border: 'green solid 4px', color: 'green', borderRadius: "20%" }}>
                 Generate Summary
@@ -93,12 +95,16 @@ const TranscriptionApp = () => {
 
             <h3 style={{ marginTop: "40px" }}>📝 Summary Notes:</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {summaryNotes && summaryNotes.map((note, index) => (
-                    <div key={index} style={{ border: "1px solid #acc", padding: "10px", borderRadius: "8px" }}>
-                        <h4>{note.range}</h4>
-                        <p>{note.summary}</p>
-                    </div>
-                ))}
+                {summaryNotes.length > 0 ? (
+                    summaryNotes.map((element, index) => (
+                        <div key={index} style={{ border: "1px solid #acc", padding: "10px", borderRadius: "8px" }}>
+                            <h4>{element.range}</h4>
+                            <p>{element.theory}</p>
+                        </div>
+                    ))
+                ) : (
+                    <p>No Notes generated yet</p>
+                )}
             </div>
 
 

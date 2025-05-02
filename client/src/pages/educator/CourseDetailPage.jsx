@@ -49,13 +49,27 @@ const CourseDetailPage = () => {
     const [error, setError] = useState(null);
     const [clicked, setClicked] = useState(false);
     const [timeTranscription, setTimeTranscription] = useState('');
+    const [summaryNotes, setSummaryNotes] = useState([]);
 
     // --- State for Video Player ---
     const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
     const [currentVideoTitle, setCurrentVideoTitle] = useState('');
     const [playingLectureId, setPlayingLectureId] = useState(null); // To highlight the playing lecture
 
-    // --- Fetch Course Data (existing useEffect) ---
+    // Load summary notes from localStorage on component mount
+    useEffect(() => {
+        try {
+            const theoriesData = localStorage.getItem('Theories');
+            const parsedTheories = theoriesData ? JSON.parse(theoriesData) : [];
+            setSummaryNotes(Array.isArray(parsedTheories) ? parsedTheories : []);
+            console.log("In the use effect ", parsedTheories);
+        } catch (error) {
+            console.error("Error parsing theories:", error);
+            setSummaryNotes([]);
+        }
+    }, []);
+
+    //Fetch Course Data (existing useEffect)
     useEffect(() => {
         const fetchCourseData = async () => {
             // ... (keep existing fetchCourseData logic)
@@ -164,6 +178,37 @@ const CourseDetailPage = () => {
         }
     };
 
+    const handleGenerateSummary = async () => {
+        if (!transcription?.segments) {
+            alert("Please upload and transcribe a file first.");
+            return;
+        }
+
+        const dataToBeSend = transcription.segments;
+
+        try {
+            const response = await fetch("http://localhost:5000/api/ai/generate-summary", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ segments: dataToBeSend })
+            });
+
+            const data = await response.json();
+            if (data) {
+                localStorage.setItem('Theories', JSON.stringify(data.theories));
+            }
+
+            console.log(data.theories)
+
+            setSummaryNotes(data.theories);
+        } catch (error) {
+            console.error("Error generating summary:", error);
+            alert("Failed to generate summary.");
+        }
+    };
+
     const handleSliderChange = (e) => {
         const timeperiod = (e.target.value / 100) * videoRef.current.getDuration();
         const percentage = e.target.value / 100;
@@ -231,7 +276,21 @@ const CourseDetailPage = () => {
 
                 {/* --- Video Player Area --- */}
                 {currentVideoUrl && (
-                    <div className="p-4 md:p-6 lg:p-8 bg-black">
+                    <div className="p-4 md:p-6 lg:p-8 bg-black relative">
+                        {/* Close button - top right corner */}
+                        <button
+                            onClick={() => {
+                                setCurrentVideoUrl(null);
+                                setCurrentVideoTitle('');
+                                setPlayingLectureId(null);
+                            }}
+                            className="absolute top-4 right-4 text-white hover:text-gray-300 focus:outline-none"
+                            aria-label="Close video player"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                         <h2 className="text-xl font-semibold text-white mb-3">{currentVideoTitle}</h2>
                         <div className='player-wrapper aspect-video'> {/* aspect-video for 16:9 ratio */}
                             <ReactPlayer
@@ -247,6 +306,7 @@ const CourseDetailPage = () => {
                                     toast.error('Could not load video.');
                                     setCurrentVideoUrl(null); // Clear on error
                                 }}
+                                onEnded={true}
                             />
 
                             {/* --- Transcript Segments Slider --- */}
@@ -272,6 +332,34 @@ const CourseDetailPage = () => {
                                     />
                                 </div>
                             )}
+
+                            {/* Summary Notes Section */}
+                            <div className="mt-8">
+                                <button
+                                    onClick={handleGenerateSummary}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                    disabled={!transcription}
+                                >
+                                    Generate Summary
+                                </button>
+
+                                <h3 className="text-lg text-white font-semibold mt-6 mb-4">📝 Summary Notes:</h3>
+                                <div className="space-y-4">
+                                    {summaryNotes && summaryNotes.length > 0 ? (
+                                        summaryNotes.map((element, index) => (
+                                            <div
+                                                key={index}
+                                                className="border border-gray-300 p-4 rounded-lg bg-gray-800"
+                                            >
+                                                <h4 className="text-white font-medium">{element.range}</h4>
+                                                <p className="text-gray-300 mt-2">{element.theory}</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-400 italic">No notes generated yet</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -372,26 +460,7 @@ const CourseDetailPage = () => {
                                                                     {formatDuration(lecture.lectureDuration)}
                                                                 </span>
                                                             </button>
-                                                            
-                                                            {/* {isPlayable && isPlaying && transcription &&
-                                                                <>
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 my-16 gap-3 px-2 md:p-0">
 
-                                                                        {transcription.segments && transcription.segments.map((segment, index) => {
-                                                                            return (
-                                                                                <div key={index} id={segment.id} className="border border-gray-500/30 pb-6 overflow-hidden rounded-lg">
-                                                                                    <h3>
-                                                                                        <p>Start Time:{segment.start}</p>
-                                                                                        <p>End Time: {segment.end}</p>
-                                                                                    </h3>
-                                                                                    <p>Data: {segment.text}</p>
-                                                                                </div>
-                                                                            );
-                                                                        })}
-
-                                                                    </div>
-                                                                </>
-                                                            } */}
                                                         </li>
                                                     );
                                                 })}
@@ -408,7 +477,7 @@ const CourseDetailPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

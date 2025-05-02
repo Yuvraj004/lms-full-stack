@@ -9,7 +9,7 @@ const EditCourse = () => {
     const { courseId } = useParams();
     const navigate = useNavigate();
     const { backendUrl, getToken } = useContext(AppContext);
-    const effectiveBackendUrl =  backendUrl; // Use localhost for dev if needed
+    const effectiveBackendUrl = 'http://localhost:5000' || backendUrl; // Use localhost for dev if needed
 
     const [courseData, setCourseData] = useState(null); // Holds the entire course structure being edited
     const [originalCourseData, setOriginalCourseData] = useState(null); // To compare changes if needed (optional)

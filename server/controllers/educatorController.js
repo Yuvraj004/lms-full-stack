@@ -3,6 +3,7 @@ import Course from '../models/Course.js';
 import { Purchase } from '../models/Purchase.js';
 import User from '../models/User.js';
 import { clerkClient } from '@clerk/express'
+import fs from 'fs';
 
 // update role to educator
 export const updateRoleToEducator = async (req, res) => {
@@ -51,11 +52,12 @@ export const addCourse = async (req, res) => {
         newCourse.courseThumbnail = imageUpload.secure_url
 
         await newCourse.save()
+        fs.unlinkSync(imageFile.path)
 
         res.json({ success: true, message: 'Course Added' })
 
     } catch (error) {
-
+        fs.unlinkSync(imageFile.path)
         res.json({ success: false, message: error.message })
 
     }
@@ -67,6 +69,7 @@ export const editCourse = async (req, res) => {
     const { updateData } = req.body; // JSON string
     const videoFiles = req.files; // multiple files (videos)
     const parsedUpdateData = JSON.parse(updateData); // parse body
+    let correspondingFile;
 
     try {
         console.log("course id received",courseId)
@@ -100,7 +103,7 @@ export const editCourse = async (req, res) => {
         // Upload each lecture video and add it to the corresponding chapter
         for (let i = 0; i < newLectures.length; i++) {
             const { chapterId, ...lectureData } = newLectures[i];
-            const correspondingFile = videoFiles[i];
+            correspondingFile = videoFiles[i];
 
             if (!correspondingFile) continue;
 
@@ -118,9 +121,11 @@ export const editCourse = async (req, res) => {
         }
 
         await course.save();
+        fs.unlinkSync(correspondingFile.path)
         res.json({ success: true, message: 'Course updated successfully', course });
     } catch (error) {
         console.error(error);
+        fs.unlinkSync(correspondingFile.path)
         res.status(500).json({ success: false, message: error.message });
     }
 };

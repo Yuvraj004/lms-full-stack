@@ -306,7 +306,6 @@ const CourseDetailPage = () => {
                                     toast.error('Could not load video.');
                                     setCurrentVideoUrl(null); // Clear on error
                                 }}
-                                onEnded={true}
                             />
 
                             {/* --- Transcript Segments Slider --- */}

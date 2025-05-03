@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary'
-import Course from '../models/Course.js';
+import {Course,Lecture,Chapter} from '../models/Course.js';
 import { Purchase } from '../models/Purchase.js';
 import User from '../models/User.js';
 import { clerkClient } from '@clerk/express'
@@ -129,6 +129,52 @@ export const editCourse = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+//Delete Course
+export const deleteCourse = async (req, res) => {
+    const { courseId } = req.params;
+    try {
+        console.log('Course received for deletion')
+        const deletedCourse = await Course.findByIdAndDelete(courseId).select('courseId updatedAt').lean();
+        if (!deletedCourse) {
+            return res.status(400).json({success:false,message: 'Course could not be deleted. Check your courseId for typos.'})
+        }
+        
+        res.status(200).json({success:true,message:'Course deleted successfully'})
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: error.message })
+    }
+}
+
+export const deleteCourseData = async (req,res) => {
+    const { lectureId, chapterId } = req.params;
+    try {
+        if (!lectureId) {
+            const deletedChapter = await Chapter.findByIdAndDelete(chapterId).select('chapterId chapterTitle').lean();
+            if (!deletedChapter) {
+                return res.status(400).json({success:false,message: 'Chapter could not be deleted. Check your chapterId for typos.'})
+            }
+            else {
+                return res.status(200).json({success:true,message: 'Chapter deleted successfully.'})
+            }
+            
+        }
+        else {
+            const deletedLecture = await Lecture.findByIdAndDelete(lectureId).select('lectureId lectureTitle').lean();
+            if (!deletedLecture) {
+                return res.status(400).json({success:false,message: 'Lecture could not be deleted. Check your lectureId for typos.'})
+            }
+            else {
+                return res.status(200).json({success:true,message: 'Lecture deleted successfully.'})
+            }
+            
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: error.message })
+    }
+}
 
 // Get Educator Courses
 export const getEducatorCourses = async (req, res) => {

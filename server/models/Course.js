@@ -1,16 +1,26 @@
 import mongoose from 'mongoose';
+const TranscriptSegmentsSchema = new mongoose.Schema({
+    range: { type: String,required:false },
+    text : {type: String,required:false}
+})
+const NoteSegmentsSchema = new mongoose.Schema({
+    range: { type: String,required:false },
+    theory : {type: String,required:false}
+})
 
 const lectureSchema = new mongoose.Schema({
-    lectureId: { type: String, required: true },
+    lectureId: { type: String, required: true ,index:true},
     lectureTitle: { type: String, required: true },
     lectureDuration: { type: Number, required: true },
     lectureUrl: { type: String, required: true },
     isPreviewFree: { type: Boolean, required: true },
-    lectureOrder: { type: Number, required: true }
+    lectureOrder: { type: Number, required: true },
+    lectureTranscript: [TranscriptSegmentsSchema],
+    lectureNotes : [NoteSegmentsSchema]
 }, { _id: false }); 
 
 const chapterSchema = new mongoose.Schema({
-    chapterId: { type: String, required: true },
+    chapterId: { type: String, required: true,index:true },
     chapterOrder: { type: Number, required: true },
     chapterTitle: { type: String, required: true },
     chapterContent: [lectureSchema] // Use the lecture schema here
@@ -44,5 +54,7 @@ const courseSchema = new mongoose.Schema({
 }, { timestamps: true, minimize: false });
 
 const Course = mongoose.model('Course', courseSchema);
+const Lecture = mongoose.model('Lecture', lectureSchema);
+const Chapter = mongoose.model('Chapter', chapterSchema);
 
-export default Course;
+export {Course,Lecture,Chapter};

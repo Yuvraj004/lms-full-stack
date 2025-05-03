@@ -1,5 +1,5 @@
 import express from 'express'
-import { addCourse,editCourse, educatorDashboardData, getEducatorCourses, getEnrolledStudentsData, updateRoleToEducator } from '../controllers/educatorController.js';
+import { addCourse,deleteCourse,deleteCourseData,editCourse, educatorDashboardData, getEducatorCourses, getEnrolledStudentsData, updateRoleToEducator } from '../controllers/educatorController.js';
 import upload from '../configs/multer.js';
 import { protectEducator } from '../middlewares/authMiddleware.js';
 
@@ -14,6 +14,14 @@ educatorRouter.post('/add-course', upload.single('image'), protectEducator, addC
 
 // support multiple videos under field name 'videos'
 educatorRouter.put('/edit-course/:courseId', protectEducator, upload.array('videos'), editCourse);
+
+// Delete Course
+educatorRouter.post('/del-course/:courseId', protectEducator, deleteCourse)
+
+// Delete Course Data
+educatorRouter.post('/del-coursedata/lecture/:lectureId', protectEducator, deleteCourseData);
+educatorRouter.post('/del-coursedata/chapter/:chapterId', protectEducator, deleteCourseData);
+
 
 // Get Educator Courses 
 educatorRouter.get('/courses', protectEducator, getEducatorCourses)

@@ -90,29 +90,44 @@ const EditCourse = () => {
         });
     }, []);
 
-    const handleRemoveChapter = useCallback((chapterIndex) => {
+    const handleRemoveChapter = useCallback(async (chapterIndex) => {
         const chapterToRemove = courseData.courseContent[chapterIndex];
-        // Remove associated lecture files if the chapter is new
-        if (chapterToRemove.isNew) {
-            chapterToRemove.chapterContent.forEach(lecture => {
-                if (lecture.isNew && newLectureFiles[lecture.lectureId]) {
-                     setNewLectureFiles(prevFiles => {
-                        const updatedFiles = { ...prevFiles };
-                        delete updatedFiles[lecture.lectureId];
-                        return updatedFiles;
-                    });
-                }
-            });
-        } else {
-            // If removing a previously existing chapter, you might need a backend endpoint
-            // For now, we'll just remove from UI state. Submission logic needs to handle this if deletion is supported by backend.
-             toast.warn("Removing existing chapters requires backend support. This chapter is only removed from the current view.");
-        }
+        const courseId = courseData._id;
+        const chapterToRemoveId = chapterToRemove.chapterId;
 
-        setCourseData(prev => ({
-            ...prev,
-            courseContent: prev.courseContent.filter((_, index) => index !== chapterIndex)
-        }));
+        try {
+            const token = await getToken();
+            const config = { // This object is the configuration
+                headers: { Authorization: `Bearer ${token}` }
+            };
+            const dataToSend = { // This object is the request body
+                courseId,
+                chapterId: chapterToRemoveId,
+            };
+
+
+            const response = await axios.put(
+                `${backendUrl}/api/educator/del-coursedata/chapter`,
+                dataToSend, // 2nd argument: data payload (request body)
+                config      // 3rd argument: configuration object with headers
+            );
+
+            if (response?.status === 200) {
+                toast.success(response.data.message);
+                setCourseData(prev => ({
+                    ...prev,
+                    courseContent: prev.courseContent.filter((_, index) => index !== chapterIndex)
+                }));
+            }
+            else if (response.data.success === false) {
+                toast.warn(response.data.message);
+                toast.error("Backend error lecture deletion error")
+            }
+        } catch (error) {
+            toast.warn("Removing existing chapters requires backend support. This chapter is only removed from the current view.");
+            console.log(error);
+            toast.error("Couldn't process delete request at backend.")
+        }
 
     }, [courseData, newLectureFiles]); // Depend on courseData and newLectureFiles
 
@@ -141,7 +156,7 @@ const EditCourse = () => {
     const handleLectureChange = useCallback((chapterIndex, lectureIndex, e) => {
         const { name, value, type, checked } = e.target;
         const newValue = type === "checkbox" ? checked : value;
-         // Ensure numeric fields are stored as numbers
+        // Ensure numeric fields are stored as numbers
         const finalValue = (name === 'lectureDuration' || name === 'lectureOrder') ? (value === '' ? '' : Number(value)) : newValue;
 
         setCourseData(prev => {
@@ -172,27 +187,51 @@ const EditCourse = () => {
     }, []);
 
 
-    const handleRemoveLecture = useCallback((chapterIndex, lectureIndex) => {
-         const lectureToRemove = courseData.courseContent[chapterIndex].chapterContent[lectureIndex];
-        // If it's a new lecture, remove its associated file
-         if (lectureToRemove.isNew && newLectureFiles[lectureToRemove.lectureId]) {
-             setNewLectureFiles(prevFiles => {
-                 const updatedFiles = { ...prevFiles };
-                 delete updatedFiles[lectureToRemove.lectureId];
-                 return updatedFiles;
-             });
-         } else if (!lectureToRemove.isNew){
-            // If removing a previously existing lecture, you might need a backend endpoint
-             toast.warn("Removing existing lectures requires backend support. This lecture is only removed from the current view.");
-         }
+    const handleRemoveLecture = useCallback(async (chapterIndex, lectureIndex) => {
+        const lectureToRemove = courseData.courseContent[chapterIndex].chapterContent[lectureIndex];
+        const courseId = courseData._id;
+        const chapterId = courseData.courseContent[chapterIndex].chapterId;
+        const lectureId = lectureToRemove.lectureId;
 
-        setCourseData(prev => {
-            const updatedContent = [...prev.courseContent];
-            const updatedChapter = { ...updatedContent[chapterIndex] };
-            updatedChapter.chapterContent = updatedChapter.chapterContent.filter((_, index) => index !== lectureIndex);
-            updatedContent[chapterIndex] = updatedChapter;
-            return { ...prev, courseContent: updatedContent };
-        });
+        try {
+            console.log(`Deleting Lecture ${lectureToRemove.lectureTitle}`);
+
+            const token = await getToken()
+
+            const config = { // This object is the configuration
+                headers: { Authorization: `Bearer ${token}` }
+            };
+            const dataToSend = { // This object is the request body
+                courseId,
+                chapterId,
+                lectureId
+            };
+
+            const response = await axios.put(
+                `${backendUrl}/api/educator/del-coursedata/lecture`,
+                dataToSend, // 2nd argument: data payload (request body)
+                config      // 3rd argument: configuration object with headers
+            );
+
+            if (response?.status === 200) {
+                toast.success("Chapter Deleted Succesfully");
+                setCourseData(prev => {
+                    const updatedContent = [...prev.courseContent];
+                    const updatedChapter = { ...updatedContent[chapterIndex] };
+                    updatedChapter.chapterContent = updatedChapter.chapterContent.filter((_, index) => index !== lectureIndex);
+                    updatedContent[chapterIndex] = updatedChapter;
+                    return { ...prev, courseContent: updatedContent };
+                });
+            }
+            else if (response.data.success === false) {
+                toast.warn(response.data.message);
+                toast.error("Backend error lecture deletion error")
+            }
+        } catch (error) {
+            toast.warn("Removing existing lectures requires backend support. This lecture is only removed from the current view.");
+            console.log(error);
+            toast.error("Couldn't process lecture delete request at backend.")
+        }
 
     }, [courseData, newLectureFiles]); // Depend on courseData and newLectureFiles
 
@@ -215,75 +254,83 @@ const EditCourse = () => {
         };
         const lectureFilesToSend = [];
 
-        courseData.courseContent.forEach(chapter => {
-            // Check if it's a new chapter (added via UI)
-            if (chapter.isNew) {
-                 // Generate permanent ID before sending or let backend handle it if preferred
-                 const finalChapterId = uuidv4(); // Or let backend generate? API expects it.
-                 const newChapterData = {
-                     ...chapter,
-                     chapterId: finalChapterId, // Use the final ID
-                     chapterContent: [] // Lectures will be handled in newLectures
-                 };
-                 delete newChapterData.isNew; // Clean up temp flag
-                 delete newChapterData.chapterContent; // Avoid sending nested lectures here
+        if (courseData.courseContent) {
+            courseData.courseContent.forEach(chapter => {
+                // Check if it's a new chapter (added via UI)
+                if (chapter.isNew) {
+                    // Generate permanent ID before sending or let backend handle it if preferred
+                    const finalChapterId = uuidv4(); // Or let backend generate? API expects it.
+                    const newChapterData = {
+                        ...chapter,
+                        chapterId: finalChapterId, // Use the final ID
+                        chapterContent: [] // Lectures will be handled in newLectures
+                    };
+                    delete newChapterData.isNew; // Clean up temp flag
+                    delete newChapterData.chapterContent; // Avoid sending nested lectures here
 
-                 updatePayload.newChapters.push(newChapterData);
-
-
-                // Add lectures from this NEW chapter to newLectures
-                 chapter.chapterContent.forEach(lecture => {
-                     if (!lecture.isNew) {
-                         console.warn("Unexpected: Existing lecture found within a new chapter state.");
-                         return; // Skip if somehow an old lecture ended up in a new chapter state
-                     }
-                     if (!newLectureFiles[lecture.lectureId]) {
-                         toast.error(`Missing video file for new lecture: ${lecture.lectureTitle}`);
-                         setIsSubmitting(false); // Halt submission
-                         throw new Error(`Missing video file for new lecture: ${lecture.lectureTitle}`); // Stop processing
-                     }
-
-                     const newLectureData = { ...lecture, chapterId: finalChapterId }; // Associate with the *new* chapter's final ID
-                     delete newLectureData.isNew; // Clean up temp flag
-                     delete newLectureData.lectureUrl; // Ensure URL is not sent
-                     // Generate permanent lecture ID here if needed, or let backend handle it
-                     // Assuming frontend generates it for now, based on Mongoose schema `required: true`
-                     newLectureData.lectureId = uuidv4();
+                    updatePayload.newChapters.push(newChapterData);
 
 
-                     updatePayload.newLectures.push(newLectureData);
-                     lectureFilesToSend.push(newLectureFiles[lecture.lectureId]); // Add file in corresponding order
-                 });
+                    if (chapter.chapterContent) {
+                        // Add lectures from this NEW chapter to newLectures
+                        chapter.chapterContent.forEach(lecture => {
+                            if (!lecture.isNew) {
+                                console.warn("Unexpected: Existing lecture found within a new chapter state.");
+                                return; // Skip if somehow an old lecture ended up in a new chapter state
+                            }
+                            if (!newLectureFiles[lecture.lectureId]) {
+                                toast.error(`Missing video file for new lecture: ${lecture.lectureTitle}`);
+                                setIsSubmitting(false); // Halt submission
+                                throw new Error(`Missing video file for new lecture: ${lecture.lectureTitle}`); // Stop processing
+                            }
 
-            } else {
-                // It's an existing chapter, check for new lectures within it
-                 chapter.chapterContent.forEach(lecture => {
-                    if (lecture.isNew) {
-                         if (!newLectureFiles[lecture.lectureId]) {
-                             toast.error(`Missing video file for new lecture: ${lecture.lectureTitle}`);
-                             setIsSubmitting(false); // Halt submission
-                             throw new Error(`Missing video file for new lecture: ${lecture.lectureTitle}`); // Stop processing
-                         }
-                        const newLectureData = { ...lecture, chapterId: chapter.chapterId }; // Associate with EXISTING chapter ID
-                         delete newLectureData.isNew;
-                         delete newLectureData.lectureUrl;
-                          // Generate permanent lecture ID
-                         newLectureData.lectureId = uuidv4();
+                            const newLectureData = { ...lecture, chapterId: finalChapterId }; // Associate with the *new* chapter's final ID
+                            delete newLectureData.isNew; // Clean up temp flag
+                            delete newLectureData.lectureUrl; // Ensure URL is not sent
+                            // Generate permanent lecture ID here if needed, or let backend handle it
+                            // Assuming frontend generates it for now, based on Mongoose schema `required: true`
+                            newLectureData.lectureId = uuidv4();
 
-                        updatePayload.newLectures.push(newLectureData);
-                        lectureFilesToSend.push(newLectureFiles[lecture.lectureId]);
-                     }
-                     // Note: Editing existing lectures isn't handled by this API structure
-                 });
-            }
-        });
+
+                            updatePayload.newLectures.push(newLectureData);
+                            lectureFilesToSend.push(newLectureFiles[lecture.lectureId]); // Add file in corresponding order
+                        });
+                    }
+
+
+                } else {
+                    // It's an existing chapter, check for new lectures within it
+                    chapter.chapterContent.forEach(lecture => {
+                        if (lecture.isNew) {
+                            if (!newLectureFiles[lecture.lectureId]) {
+                                toast.error(`Missing video file for new lecture: ${lecture.lectureTitle}`);
+                                setIsSubmitting(false); // Halt submission
+                                throw new Error(`Missing video file for new lecture: ${lecture.lectureTitle}`); // Stop processing
+                            }
+                            const newLectureData = { ...lecture, chapterId: chapter.chapterId }; // Associate with EXISTING chapter ID
+                            delete newLectureData.isNew;
+                            delete newLectureData.lectureUrl;
+                            // Generate permanent lecture ID
+                            newLectureData.lectureId = uuidv4();
+
+                            updatePayload.newLectures.push(newLectureData);
+                            lectureFilesToSend.push(newLectureFiles[lecture.lectureId]);
+                        }
+                        // Note: Editing existing lectures isn't handled by this API structure
+                    });
+                }
+            });
+        }
 
         // 2. Create FormData
         const formData = new FormData();
         formData.append("updateData", JSON.stringify(updatePayload));
-        lectureFilesToSend.forEach((file) => {
-            formData.append("videos", file); // Use "videos" as the field name expected by backend
-        });
+        if (lectureFilesToSend) {
+            lectureFilesToSend.forEach((file) => {
+                formData.append("videos", file); // Use "videos" as the field name expected by backend
+            });
+        }
+
 
         // 3. Send Request
         try {
@@ -294,7 +341,6 @@ const EditCourse = () => {
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
-                        // 'Content-Type': 'multipart/form-data' // Axios sets this automatically for FormData
                     },
                     // Optional: Add progress tracking here if needed
                 }
@@ -343,7 +389,7 @@ const EditCourse = () => {
                             required
                         />
                     </div>
-                     <div>
+                    <div>
                         <label htmlFor="courseDescription" className="block text-sm font-medium text-gray-600 mb-1">Description</label>
                         <textarea
                             id="courseDescription"
@@ -356,7 +402,7 @@ const EditCourse = () => {
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                         <div>
+                        <div>
                             <label htmlFor="coursePrice" className="block text-sm font-medium text-gray-600 mb-1">Price ($)</label>
                             <input
                                 type="number"
@@ -371,7 +417,7 @@ const EditCourse = () => {
                                 step="0.01"
                             />
                         </div>
-                         <div>
+                        <div>
                             <label htmlFor="discount" className="block text-sm font-medium text-gray-600 mb-1">Discount (%)</label>
                             <input
                                 type="number"
@@ -386,7 +432,7 @@ const EditCourse = () => {
                                 max="100"
                             />
                         </div>
-                         <div className="flex items-end pb-2">
+                        <div className="flex items-end pb-2">
                             <label className="flex items-center space-x-2 text-sm font-medium text-gray-600">
                                 <input
                                     type="checkbox"
@@ -399,8 +445,8 @@ const EditCourse = () => {
                             </label>
                         </div>
                     </div>
-                     {/* Add Thumbnail Update Here if needed - requires backend changes */}
-                     {/* <div>
+                    {/* Add Thumbnail Update Here if needed - requires backend changes */}
+                    {/* <div>
                         <label className="block text-sm font-medium text-gray-600 mb-1">Current Thumbnail</label>
                         {courseData.courseThumbnail ? <img src={courseData.courseThumbnail} alt="Thumbnail" className="h-20 mb-2"/> : <p>None</p>}
                         <input type="file" name="thumbnailFile" onChange={handleThumbnailChange} />
@@ -409,10 +455,10 @@ const EditCourse = () => {
 
                 {/* Chapters and Lectures Section */}
                 <section className="space-y-6">
-                     <h2 className="text-xl font-semibold text-gray-700 mb-4">Course Content</h2>
-                     {courseData.courseContent?.map((chapter, chapterIndex) => (
+                    <h2 className="text-xl font-semibold text-gray-700 mb-4">Course Content</h2>
+                    {courseData.courseContent?.map((chapter, chapterIndex) => (
                         <div key={chapter.chapterId} className="border border-gray-200 p-4 rounded-md bg-gray-50 space-y-4">
-                             {/* Chapter Header */}
+                            {/* Chapter Header */}
                             <div className="flex justify-between items-center">
                                 <div className="flex-grow mr-4">
                                     <label htmlFor={`chapterTitle-${chapterIndex}`} className="sr-only">Chapter Title</label>
@@ -427,8 +473,8 @@ const EditCourse = () => {
                                         // disabled={!chapter.isNew} // Optionally disable editing existing titles if API doesn't support
                                         required
                                     />
-                                     {/* Add Chapter Order input if needed */}
-                                     {/* <input type="number" name="chapterOrder" value={chapter.chapterOrder} onChange={(e) => handleChapterChange(chapterIndex, e)} placeholder="Order" className="w-20 border p-1 rounded ml-2"/> */}
+                                    {/* Add Chapter Order input if needed */}
+                                    {/* <input type="number" name="chapterOrder" value={chapter.chapterOrder} onChange={(e) => handleChapterChange(chapterIndex, e)} placeholder="Order" className="w-20 border p-1 rounded ml-2"/> */}
                                 </div>
                                 <button
                                     type="button"
@@ -446,7 +492,7 @@ const EditCourse = () => {
                                     <div key={lecture.lectureId} className="border border-gray-300 p-3 rounded bg-white shadow-sm space-y-2">
                                         <div className="flex justify-between items-start">
                                             <p className="font-semibold text-gray-700">Lecture {lectureIndex + 1}</p>
-                                             <button
+                                            <button
                                                 type="button"
                                                 onClick={() => handleRemoveLecture(chapterIndex, lectureIndex)}
                                                 className="text-red-500 hover:text-red-700 text-xs font-medium"
@@ -462,18 +508,18 @@ const EditCourse = () => {
                                             onChange={(e) => handleLectureChange(chapterIndex, lectureIndex, e)}
                                             placeholder="Lecture Title"
                                             className="w-full border border-gray-300 p-1.5 rounded text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                             // disabled={!lecture.isNew} // Optionally disable editing existing titles
+                                            // disabled={!lecture.isNew} // Optionally disable editing existing titles
                                             required
                                         />
                                         <div className="grid grid-cols-2 gap-2 text-sm">
-                                             <input
+                                            <input
                                                 type="number"
                                                 name="lectureDuration"
                                                 value={lecture.lectureDuration}
                                                 onChange={(e) => handleLectureChange(chapterIndex, lectureIndex, e)}
                                                 placeholder="Duration (seconds)"
                                                 className="w-full border border-gray-300 p-1.5 rounded focus:ring-indigo-500 focus:border-indigo-500"
-                                                 // disabled={!lecture.isNew}
+                                                // disabled={!lecture.isNew}
                                                 required
                                             />
                                             <label className="flex items-center space-x-1.5">
@@ -483,12 +529,12 @@ const EditCourse = () => {
                                                     checked={lecture.isPreviewFree}
                                                     onChange={(e) => handleLectureChange(chapterIndex, lectureIndex, e)}
                                                     className="rounded text-indigo-600 focus:ring-indigo-500"
-                                                     // disabled={!lecture.isNew}
+                                                // disabled={!lecture.isNew}
                                                 />
                                                 <span>Free Preview</span>
                                             </label>
                                         </div>
-                                         {/* Add Lecture Order input if needed */}
+                                        {/* Add Lecture Order input if needed */}
                                         {/* Display existing lecture URL (read-only) */}
                                         {!lecture.isNew && lecture.lectureUrl && (
                                             <p className="text-xs text-gray-500 truncate">
@@ -498,8 +544,8 @@ const EditCourse = () => {
                                         {/* File input only for NEW lectures */}
                                         {lecture.isNew && (
                                             <div>
-                                                 <label htmlFor={`lectureFile-${lecture.lectureId}`} className="block text-xs font-medium text-gray-600 mb-1">Lecture Video File</label>
-                                                 <input
+                                                <label htmlFor={`lectureFile-${lecture.lectureId}`} className="block text-xs font-medium text-gray-600 mb-1">Lecture Video File</label>
+                                                <input
                                                     type="file"
                                                     id={`lectureFile-${lecture.lectureId}`}
                                                     accept="video/*"
@@ -508,11 +554,11 @@ const EditCourse = () => {
                                                     required={lecture.isNew} // Required only if it's a new lecture
                                                 />
                                                 {newLectureFiles[lecture.lectureId] && <span className="text-xs text-green-600 ml-2">File selected: {newLectureFiles[lecture.lectureId].name}</span>}
-                                             </div>
+                                            </div>
                                         )}
                                     </div>
                                 ))}
-                                 {/* Add New Lecture Button */}
+                                {/* Add New Lecture Button */}
                                 <button
                                     type="button"
                                     onClick={() => handleAddLecture(chapterIndex)}
@@ -543,7 +589,7 @@ const EditCourse = () => {
                     >
                         {isSubmitting ? "Saving..." : "Save Changes"}
                     </button>
-                     <button
+                    <button
                         type="button"
                         onClick={() => navigate(-1)} // Go back
                         className="ml-4 bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"

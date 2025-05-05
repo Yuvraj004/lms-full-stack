@@ -96,7 +96,7 @@ const AddCourse = () => {
       e.preventDefault();
 
       if (!image) {
-        toast.error('Thumbnail Not Selected')
+        toast.info('Creating course without a Thumbnail.')
       }
 
       const courseData = {
@@ -109,7 +109,7 @@ const AddCourse = () => {
 
       const formData = new FormData()
       formData.append('courseData', JSON.stringify(courseData))
-      formData.append('image', image)
+      if (image){ formData.append('image', image)}
 
       const token = await getToken()
 
@@ -143,10 +143,6 @@ const AddCourse = () => {
       });
     }
   }, []);
-
-  useEffect(() => {
-    console.log(chapters);
-  }, [chapters]);
 
   return (
     <div className='h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>

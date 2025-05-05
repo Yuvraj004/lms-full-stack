@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary'
-import {Course,Lecture,Chapter} from '../models/Course.js';
+import { Course, Lecture, Chapter } from '../models/Course.js';
 import { Purchase } from '../models/Purchase.js';
 import User from '../models/User.js';
 import { clerkClient } from '@clerk/express'
@@ -28,36 +28,38 @@ export const updateRoleToEducator = async (req, res) => {
 
 // Add New Course
 export const addCourse = async (req, res) => {
+    const imageFile = req.file //thumbnail optional
 
     try {
 
         const { courseData } = req.body
 
-        const imageFile = req.file
-
         const educatorId = req.auth.userId
-
-        if (!imageFile) {
-            return res.json({ success: false, message: 'Thumbnail Not Attached' })
-        }
 
         const parsedCourseData = await JSON.parse(courseData)
 
         parsedCourseData.educator = educatorId
 
         const newCourse = await Course.create(parsedCourseData)
+        
+        let imageUpload;
 
-        const imageUpload = await cloudinary.uploader.upload(imageFile.path)
-
-        newCourse.courseThumbnail = imageUpload.secure_url
+        if (imageFile){
+            imageUpload = await cloudinary.uploader.upload(imageFile.path)
+            newCourse.courseThumbnail = imageUpload.secure_url
+        }
 
         await newCourse.save()
-        fs.unlinkSync(imageFile.path)
+        if (imageFile) {
+            fs.unlinkSync(imageFile.path)
+        }
 
         res.json({ success: true, message: 'Course Added' })
 
     } catch (error) {
-        fs.unlinkSync(imageFile.path)
+        if (imageFile) {
+            fs.unlinkSync(imageFile.path)
+        }
         res.json({ success: false, message: error.message })
 
     }
@@ -72,7 +74,7 @@ export const editCourse = async (req, res) => {
     let correspondingFile;
 
     try {
-        console.log("course id received",courseId)
+        console.log("course id received", courseId)
         const course = await Course.findById(courseId);
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
@@ -121,11 +123,13 @@ export const editCourse = async (req, res) => {
         }
 
         await course.save();
-        fs.unlinkSync(correspondingFile.path)
+        if (correspondingFile)
+            fs.unlinkSync(correspondingFile.path)
         res.json({ success: true, message: 'Course updated successfully', course });
     } catch (error) {
         console.error(error);
-        fs.unlinkSync(correspondingFile.path)
+        if (correspondingFile)
+            fs.unlinkSync(correspondingFile.path)
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -137,38 +141,61 @@ export const deleteCourse = async (req, res) => {
         console.log('Course received for deletion')
         const deletedCourse = await Course.findByIdAndDelete(courseId).select('courseId updatedAt').lean();
         if (!deletedCourse) {
-            return res.status(400).json({success:false,message: 'Course could not be deleted. Check your courseId for typos.'})
+            return res.status(400).json({ success: false, message: 'Course could not be deleted. Check your courseId for typos.' })
         }
-        
-        res.status(200).json({success:true,message:'Course deleted successfully'})
+
+        res.status(200).json({ success: true, message: 'Course deleted successfully' })
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: error.message })
     }
 }
 
-export const deleteCourseData = async (req,res) => {
-    const { lectureId, chapterId } = req.params;
+export const deleteCourseData = async (req, res) => {
+    const { lectureId, chapterId, courseId } = req.body;
+    
     try {
         if (!lectureId) {
-            const deletedChapter = await Chapter.findByIdAndDelete(chapterId).select('chapterId chapterTitle').lean();
-            if (!deletedChapter) {
-                return res.status(400).json({success:false,message: 'Chapter could not be deleted. Check your chapterId for typos.'})
+            const deletedChapterResult = await Course.updateOne(
+                { _id: courseId }, // Match the course document
+                
+                { $pull: { courseContent: { chapterId: chapterId } } } // Remove the element matching the chapterId from the array
+            );
+
+            // Check if a course was found and if a chapter was actually removed
+            if (deletedChapterResult.matchedCount === 0) {
+                return res.status(404).json({ success: false, message: 'Course not found.' });
             }
-            else {
-                return res.status(200).json({success:true,message: 'Chapter deleted successfully.'})
+            if (deletedChapterResult.modifiedCount === 0) {
+                // This means the course was found, but no chapter with that ID existed in its array
+                return res.status(404).json({ success: false, message: 'Chapter not found within the course or could not be deleted. Check your chapterId.' });
             }
-            
+
+            return res.status(200).json({ success: true, message: 'Chapter deleted successfully.' });
+
+
         }
         else {
-            const deletedLecture = await Lecture.findByIdAndDelete(lectureId).select('lectureId lectureTitle').lean();
-            if (!deletedLecture) {
-                return res.status(400).json({success:false,message: 'Lecture could not be deleted. Check your lectureId for typos.'})
+            const updateResult = await Course.updateOne(
+                { _id: courseId }, // Match the course document
+                // Use $pull with arrayFilters to target the nested lecture array
+                { $pull: { 'courseContent.$[chapter].chapterContent': { lectureId: lectureId } } },
+                // Define the filter for the chapter element
+                { arrayFilters: [{ 'chapter.chapterId': chapterId }] }
+            );
+
+            // Check if a course was found and if a lecture was actually removed
+            if (updateResult.matchedCount === 0) {
+                return res.status(404).json({ success: false, message: 'Course not found.' });
             }
-            else {
-                return res.status(200).json({success:true,message: 'Lecture deleted successfully.'})
+            if (updateResult.modifiedCount === 0) {
+                // This means the course was found, but either the chapterId didn't match any chapters,
+                // or the lectureId didn't match any lectures within the specified chapter.
+                return res.status(404).json({ success: false, message: 'Lecture not found within the specified chapter or could not be deleted. Check your courseId, chapterId, and lectureId.' });
             }
-            
+
+            return res.status(200).json({ success: true, message: 'Lecture deleted successfully.' });
+
         }
     } catch (error) {
         console.error(error);

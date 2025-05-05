@@ -19,8 +19,8 @@ educatorRouter.put('/edit-course/:courseId', protectEducator, upload.array('vide
 educatorRouter.delete('/del-course/:courseId', protectEducator, deleteCourse)
 
 // Delete Course Data
-educatorRouter.post('/del-coursedata/lecture/:lectureId', protectEducator, deleteCourseData);
-educatorRouter.post('/del-coursedata/chapter/:chapterId', protectEducator, deleteCourseData);
+educatorRouter.put('/del-coursedata/lecture', protectEducator, deleteCourseData);
+educatorRouter.put('/del-coursedata/chapter', protectEducator, deleteCourseData);
 
 
 // Get Educator Courses 

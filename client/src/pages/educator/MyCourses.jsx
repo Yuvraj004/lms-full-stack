@@ -45,6 +45,7 @@ const MyCourses = () => {
       }
     } catch (error) {
       console.log(error);
+      toast.error("Couldn't process course delete request at backend.")
     }
   };
 

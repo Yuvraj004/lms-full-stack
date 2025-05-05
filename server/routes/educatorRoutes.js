@@ -16,7 +16,7 @@ educatorRouter.post('/add-course', upload.single('image'), protectEducator, addC
 educatorRouter.put('/edit-course/:courseId', protectEducator, upload.array('videos'), editCourse);
 
 // Delete Course
-educatorRouter.post('/del-course/:courseId', protectEducator, deleteCourse)
+educatorRouter.delete('/del-course/:courseId', protectEducator, deleteCourse)
 
 // Delete Course Data
 educatorRouter.post('/del-coursedata/lecture/:lectureId', protectEducator, deleteCourseData);

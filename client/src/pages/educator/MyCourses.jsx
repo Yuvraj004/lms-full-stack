@@ -10,7 +10,6 @@ const MyCourses = () => {
   const { backendUrl, isEducator, currency, getToken } = useContext(AppContext)
 
   const navigate = useNavigate();
-  
   const [courses, setCourses] = useState(null)
 
   const fetchEducatorCourses = async () => {
@@ -28,6 +27,26 @@ const MyCourses = () => {
     }
 
   }
+
+  const handleDelete = async (itemId) => {
+    try {
+      console.log(`Deleted Course`);
+      
+      const token = await getToken()
+
+      const response = await axios.delete(`${backendUrl}/api/educator/del-course/${itemId}`,
+        {
+          headers:
+            { Authorization: `Bearer ${token}` }
+        });
+      console.log(response.data)
+      if (response?.status === 200) {
+        setCourses(courses.filter((item) => item._id !== itemId));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   useEffect(() => {
     if (isEducator) {
@@ -67,6 +86,14 @@ const MyCourses = () => {
                       className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
                     >
                       Edit
+                    </button>
+                  </td>
+                  <td className='px-2 py-3'>
+                    <button
+                      onClick={() => handleDelete(course._id)}
+                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition"
+                    >
+                      Delete
                     </button>
                   </td>
                 </tr>

@@ -9,7 +9,7 @@ const EditCourse = () => {
     const { courseId } = useParams();
     const navigate = useNavigate();
     const { backendUrl, getToken } = useContext(AppContext);
-    const effectiveBackendUrl = 'http://localhost:5000' || backendUrl; // Use localhost for dev if needed
+    const effectiveBackendUrl = 'http://localhost:5000';
 
     const [courseData, setCourseData] = useState(null); // Holds the entire course structure being edited
     const [originalCourseData, setOriginalCourseData] = useState(null); // To compare changes if needed (optional)
@@ -24,7 +24,7 @@ const EditCourse = () => {
             try {
                 // Use axios for consistency and potential interceptors
                 const token = await getToken();
-                const res = await axios.get(`${effectiveBackendUrl}/api/course/${courseId}`, {
+                const res = await axios.get(`${backendUrl}/api/course/${courseId}`, {
                     headers: { Authorization: `Bearer ${token}` }, // Assuming fetching needs auth too
                 });
                 if (res.data && res.data.courseData) {
@@ -50,7 +50,7 @@ const EditCourse = () => {
         };
 
         fetchCourseData();
-    }, [courseId, effectiveBackendUrl, getToken, navigate]);
+    }, [courseId, backendUrl, getToken, navigate]);
 
     // --- Handlers for Course Level Details ---
     const handleCourseDetailChange = useCallback((e) => {
@@ -336,7 +336,7 @@ const EditCourse = () => {
         try {
             const token = await getToken();
             const { data } = await axios.put(
-                `${effectiveBackendUrl}/api/educator/edit-course/${courseId}`,
+                `${backendUrl}/api/educator/edit-course/${courseId}`,
                 formData,
                 {
                     headers: {

@@ -39,7 +39,7 @@ const CourseDetailPage = () => {
     const { courseId } = useParams();
     const navigate = useNavigate();
     const { backendUrl, getToken } = useContext(AppContext);
-    const effectiveBackendUrl = backendUrl || "http://localhost:5000";
+    const effectiveBackendUrl =  "http://localhost:5000";
     const videoRef = useRef(null);
 
     const [courseData, setCourseData] = useState(null);
@@ -82,7 +82,7 @@ const CourseDetailPage = () => {
             setError(null);
             try {
                 const token = await getToken();
-                const res = await axios.get(`${effectiveBackendUrl}/api/course/${courseId}`, {
+                const res = await axios.get(`${backendUrl}/api/course/${courseId}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (res.data && res.data.courseData) {
@@ -113,7 +113,7 @@ const CourseDetailPage = () => {
             }
         };
         fetchCourseData();
-    }, [courseId, effectiveBackendUrl, getToken, navigate]);
+    }, [courseId, backendUrl, getToken, navigate]);
 
     // --- Handle Lecture Click for Video Playback ---
     const handleLectureClick = useCallback((lecture) => {

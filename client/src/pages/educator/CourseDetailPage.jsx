@@ -116,7 +116,7 @@ const CourseDetailPage = () => {
     }, [courseId, backendUrl, getToken, navigate]);
 
     // --- Handle Lecture Click for Video Playback ---
-    const handleLectureClick = useCallback((lecture) => {
+    const handleLectureClick = useCallback((lecture,chapterId) => {
         // Basic Access Control: Allow only free previews for now
         // TODO: Enhance this check if user enrollment status is available
         const canPlay = lecture.isPreviewFree;
@@ -126,7 +126,7 @@ const CourseDetailPage = () => {
             setCurrentVideoTitle(lecture.lectureTitle);
             setPlayingLectureId(lecture.lectureId); // Set the ID of the playing lecture
             setLectureUrl(lecture.lectureUrl);
-            handleTranscriptCreation(lecture.lectureUrl);
+            handleTranscriptCreation(lecture.lectureUrl,lecture.lectureId,chapterId,courseId);
         } else if (!lecture.lectureUrl) {
             toast.info("Video for this lecture is not available yet.");
         } else {
@@ -140,13 +140,13 @@ const CourseDetailPage = () => {
     }, []); // No dependencies needed if access logic is self-contained or comes from props/context later
 
 
-    const handleTranscriptCreation = async (lectureUrl) => {
+    const handleTranscriptCreation = async (lectureUrl,lectureId,chapterId,courseId) => {
         if (!lectureUrl) {
             alert("Please select a video file first.");
             return;
         }
         setClicked(true);
-        alert('generating Transcription');
+        console.log('generating Transcription');
         try {
             // Fetch the video file from Cloudinary URL
             const response = await fetch(lectureUrl);
@@ -158,6 +158,10 @@ const CourseDetailPage = () => {
             // Prepare FormData
             const formData = new FormData();
             formData.append("file", file);
+            formData.append('lectureId',lectureId)
+            formData.append('chapterId',chapterId)
+            formData.append('courseId',courseId)
+            
             console.log("Sending file")
 
             // Send to backend
@@ -167,11 +171,18 @@ const CourseDetailPage = () => {
             });
             console.log("receiving data")
             const data = await transcribeResponse.json();
+            if(data.success === true){
+                console.log(data.transcription.text);
+                setTranscription(data.transcription); // or data.segments if you want segments
+                setClicked(false);
+            } 
+            else{
+                let msg = data.message;
+                alert(msg);
+                console.log(msg);
+            }
 
-            console.log(data.transcription.segments[0]);
-
-            setTranscription(data.transcription); // or data.segments if you want segments
-            setClicked(false);
+            
         } catch (error) {
             console.error("Transcription Error:", error);
             alert("Failed to transcribe the video file.");
@@ -336,7 +347,7 @@ const CourseDetailPage = () => {
                             <div className="mt-8">
                                 <button
                                     onClick={handleGenerateSummary}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                    className="px-4 py-2 bg-green-400 text-white rounded-lg hover:bg-green-700 active:bg-red-600 delay-100 transition-colors"
                                     disabled={!transcription}
                                 >
                                     Generate Summary
@@ -439,7 +450,7 @@ const CourseDetailPage = () => {
                                                         <li key={lecture.lectureId || lectureIndex}>
                                                             {/* Make the entire item clickable */}
                                                             <button
-                                                                onClick={() => handleLectureClick(lecture)}
+                                                                onClick={() => handleLectureClick(lecture,chapter.chapterId)}
                                                                 disabled={!lecture.lectureUrl} // Disable button if no URL
                                                                 className={`w-full flex justify-between items-center text-sm py-2 px-3 rounded transition-colors duration-150 ${isPlaying ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-200' // Highlight if playing
                                                                     } ${!lecture.lectureUrl ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`} // Style disabled state

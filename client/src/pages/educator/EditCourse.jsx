@@ -139,7 +139,7 @@ const EditCourse = () => {
             lectureTitle: "",
             lectureDuration: 0, // Default or prompt user
             lectureUrl: "", // Will be set by backend after upload
-            isPreviewFree: false,
+            isPreviewFree: true,
             lectureOrder: chapter.chapterContent.length + 1,
             isNew: true, // Flag to identify new lectures on submit
         };

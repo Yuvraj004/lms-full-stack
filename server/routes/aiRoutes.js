@@ -5,6 +5,7 @@ import path from 'path';
 import axios from 'axios';
 import FormData from 'form-data';
 import multer from "multer";
+import { Course } from '../models/Course.js';
 
 const aiRouter = express.Router()
 
@@ -35,13 +36,37 @@ const upload = multer({ storage });
 aiRouter.post("/transcribe", upload.single("file"), async (req, res) => {
     const filePath = req.file.path;
     try {
-        
 
-        console.log(filePath);
+        const course = await Course.findById(req.body.courseId).select('_id courseContent');
+        if (!course) {
+            return res.status(404).json({ success: false, message: "Course not found" });
+        }
+        // Find the specific chapter by chapterId
+        const chapter = course.courseContent.find(
+            (ch) => ch.chapterId === req.body.chapterId
+        );
+        if (!chapter) {
+            return res.status(404).json({ success: false, message: "Chapter not found" });
+        }
+
+        // Find the specific lecture by lectureId
+        const lecture = chapter.chapterContent.find(
+            (lec) => lec.lectureId === req.body.lectureId
+        );
+        if (!lecture) {
+            return res.status(404).json({ success: false, message: "Lecture not found" });
+        }
+
+        if (lecture.lectureTranscript.length > 0) {
+            console.log("transcriptid: ", lecture.lectureTranscript[0]._id)
+            fs.unlinkSync(filePath);
+            return res.json({ success: true, transcription: lecture.lectureTranscript[0] || [] });
+        }
+
 
         const formData = new FormData();
         formData.append("file", fs.createReadStream(req.file.path));
-        
+
         let pythonResponse;
 
         try {
@@ -49,21 +74,28 @@ aiRouter.post("/transcribe", upload.single("file"), async (req, res) => {
                 headers: formData.getHeaders(),
                 maxBodyLength: Infinity,
             });
+
+            //add it to the lectureId,course,chapterId
+            const lectureTranscription = pythonResponse.data;
+
+            // Update the lecture
+            lecture.lectureTranscript = lectureTranscription;
+            await course.save();
+            console.log(lecture);
+
+
         } catch (e) {
             console.log(`Error sending requrest on python microservice ${e}`)
-            res.json({
-                success
-                    : false, transcription: {}
-            })
+            return res.json({ success: false, transcription: {} })
         }
 
-        fs.unlinkSync(req.file.path);
+        fs.unlinkSync(filePath);
 
         res.json({ success: true, transcription: pythonResponse.data });
 
     } catch (error) {
 
-        fs.unlinkSync(req.file.path);
+        fs.unlinkSync(filePath);
         console.error(error);
         res.status(500).json({ error: "Transcription failed" });
     }
@@ -84,10 +116,10 @@ aiRouter.post("/generate-summary", express.json(), async (req, res) => {
                 "Content-Type": "application/json"
             }
         });
-        
+
         if (!response) {
             console.log('Error summarizing by the python micrservice')
-            res.json({success:false,notes:[]})
+            res.json({ success: false, notes: [] })
         }
 
         res.json({ success: true, theories: response.data.theories });

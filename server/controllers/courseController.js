@@ -1,5 +1,5 @@
 import {Course}from "../models/Course.js"
-
+import User from "../models/User.js"
 
 // Get All Courses
 export const getAllCourse = async (req, res) => {
@@ -7,7 +7,7 @@ export const getAllCourse = async (req, res) => {
 
         const courses = await Course.find({ isPublished: true })
             .select(['-courseContent', '-enrolledStudents'])
-            .populate({ path: 'educator', select: '-password' })
+            .populate({ path: 'educator', select: '-password', model: User })
 
         res.json({ success: true, courses })
 

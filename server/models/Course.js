@@ -1,5 +1,14 @@
 import mongoose from 'mongoose';
 const TranscriptSegmentsSchema = new mongoose.Schema({
+    segments: {
+        type:Object,
+        id: { type: Number },
+        seek: { type: Number },
+        start: { type: Number },
+        end: { type: Number },
+        text: { type: String },
+        tokens:{ type: Array },
+    },
     range: { type: String,required:false },
     text : {type: String,required:false}
 })

@@ -39,7 +39,7 @@ const CourseDetailPage = () => {
     const { courseId } = useParams();
     const navigate = useNavigate();
     const { backendUrl, getToken } = useContext(AppContext);
-    const effectiveBackendUrl =  "http://localhost:5000";
+    const effectiveBackendUrl = "http://localhost:5000";
     const videoRef = useRef(null);
 
     const [courseData, setCourseData] = useState(null);
@@ -49,25 +49,14 @@ const CourseDetailPage = () => {
     const [error, setError] = useState(null);
     const [clicked, setClicked] = useState(false);
     const [timeTranscription, setTimeTranscription] = useState('');
+
+    const [summaryText, setSummaryText] = useState('Generate Summary');
     const [summaryNotes, setSummaryNotes] = useState([]);
 
     // --- State for Video Player ---
     const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
     const [currentVideoTitle, setCurrentVideoTitle] = useState('');
     const [playingLectureId, setPlayingLectureId] = useState(null); // To highlight the playing lecture
-
-    // Load summary notes from localStorage on component mount
-    useEffect(() => {
-        try {
-            const theoriesData = localStorage.getItem('Theories');
-            const parsedTheories = theoriesData ? JSON.parse(theoriesData) : [];
-            setSummaryNotes(Array.isArray(parsedTheories) ? parsedTheories : []);
-            console.log("In the use effect ", parsedTheories);
-        } catch (error) {
-            console.error("Error parsing theories:", error);
-            setSummaryNotes([]);
-        }
-    }, []);
 
     //Fetch Course Data (existing useEffect)
     useEffect(() => {
@@ -116,7 +105,7 @@ const CourseDetailPage = () => {
     }, [courseId, backendUrl, getToken, navigate]);
 
     // --- Handle Lecture Click for Video Playback ---
-    const handleLectureClick = useCallback((lecture,chapterId) => {
+    const handleLectureClick = useCallback((lecture, chapterId) => {
         // Basic Access Control: Allow only free previews for now
         // TODO: Enhance this check if user enrollment status is available
         const canPlay = lecture.isPreviewFree;
@@ -126,7 +115,9 @@ const CourseDetailPage = () => {
             setCurrentVideoTitle(lecture.lectureTitle);
             setPlayingLectureId(lecture.lectureId); // Set the ID of the playing lecture
             setLectureUrl(lecture.lectureUrl);
-            handleTranscriptCreation(lecture.lectureUrl,lecture.lectureId,chapterId,courseId);
+            handleTranscriptCreation(lecture.lectureUrl, lecture.lectureId, chapterId, courseId);
+            setSummaryText('Generate Summary');
+            
         } else if (!lecture.lectureUrl) {
             toast.info("Video for this lecture is not available yet.");
         } else {
@@ -140,7 +131,7 @@ const CourseDetailPage = () => {
     }, []); // No dependencies needed if access logic is self-contained or comes from props/context later
 
 
-    const handleTranscriptCreation = async (lectureUrl,lectureId,chapterId,courseId) => {
+    const handleTranscriptCreation = async (lectureUrl, lectureId, chapterId, courseId) => {
         if (!lectureUrl) {
             alert("Please select a video file first.");
             return;
@@ -158,10 +149,10 @@ const CourseDetailPage = () => {
             // Prepare FormData
             const formData = new FormData();
             formData.append("file", file);
-            formData.append('lectureId',lectureId)
-            formData.append('chapterId',chapterId)
-            formData.append('courseId',courseId)
-            
+            formData.append('lectureId', lectureId)
+            formData.append('chapterId', chapterId)
+            formData.append('courseId', courseId)
+
             console.log("Sending file")
 
             // Send to backend
@@ -171,18 +162,18 @@ const CourseDetailPage = () => {
             });
             console.log("receiving data")
             const data = await transcribeResponse.json();
-            if(data.success === true){
+            if (data.success === true) {
                 console.log(data.transcription.text);
                 setTranscription(data.transcription); // or data.segments if you want segments
                 setClicked(false);
-            } 
-            else{
+            }
+            else {
                 let msg = data.message;
                 alert(msg);
                 console.log(msg);
             }
 
-            
+
         } catch (error) {
             console.error("Transcription Error:", error);
             alert("Failed to transcribe the video file.");
@@ -198,6 +189,7 @@ const CourseDetailPage = () => {
         const dataToBeSend = transcription.segments;
 
         try {
+            setSummaryText('Generating summary');
             const response = await fetch("http://localhost:5000/api/ai/generate-summary", {
                 method: "POST",
                 headers: {
@@ -212,9 +204,11 @@ const CourseDetailPage = () => {
             }
 
             console.log(data.theories)
+            setSummaryText('Generated');
 
             setSummaryNotes(data.theories);
         } catch (error) {
+            setSummaryText('Error while Generating');
             console.error("Error generating summary:", error);
             alert("Failed to generate summary.");
         }
@@ -237,6 +231,18 @@ const CourseDetailPage = () => {
             localStorage.setItem('Segment_Transcript', foundSegment.text);
         }
     };
+
+    const handleSliderChangeFromVideo = (seconds) => {
+
+        const foundSegment = transcription.segments.find((segment) => {
+            return seconds >= segment.start && seconds <= segment.end;
+        });
+
+        if (foundSegment) {
+            setTimeTranscription(foundSegment.text);
+            localStorage.setItem('Segment_Transcript', foundSegment.text);
+        }
+    }
 
     // --- Render Logic ---
 
@@ -311,6 +317,7 @@ const CourseDetailPage = () => {
                                 width='100%'
                                 height='100%'
                                 controls={true}
+                                onSeek={e => { handleSliderChangeFromVideo(e) }}
                                 playing={false} // Optional: Auto-play when selected
                                 onError={e => {
                                     console.error('Video Player Error:', e)
@@ -345,13 +352,15 @@ const CourseDetailPage = () => {
 
                             {/* Summary Notes Section */}
                             <div className="mt-8">
-                                <button
-                                    onClick={handleGenerateSummary}
-                                    className="px-4 py-2 bg-green-400 text-white rounded-lg hover:bg-green-700 active:bg-red-600 delay-100 transition-colors"
-                                    disabled={!transcription}
-                                >
-                                    Generate Summary
-                                </button>
+                                {(!summaryNotes || summaryNotes.length === 0) && (
+                                    <button
+                                        onClick={handleGenerateSummary}
+                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-900 active:bg-red-600 delay-100 transition-colors"
+                                    >
+                                        {summaryText}
+                                    </button>
+                                )}
+
 
                                 <h3 className="text-lg text-white font-semibold mt-6 mb-4">📝 Summary Notes:</h3>
                                 <div className="space-y-4">
@@ -450,7 +459,7 @@ const CourseDetailPage = () => {
                                                         <li key={lecture.lectureId || lectureIndex}>
                                                             {/* Make the entire item clickable */}
                                                             <button
-                                                                onClick={() => handleLectureClick(lecture,chapter.chapterId)}
+                                                                onClick={() => handleLectureClick(lecture, chapter.chapterId)}
                                                                 disabled={!lecture.lectureUrl} // Disable button if no URL
                                                                 className={`w-full flex justify-between items-center text-sm py-2 px-3 rounded transition-colors duration-150 ${isPlaying ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-200' // Highlight if playing
                                                                     } ${!lecture.lectureUrl ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`} // Style disabled state
